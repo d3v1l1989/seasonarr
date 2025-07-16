@@ -1,5 +1,5 @@
 # Build React frontend
-FROM node:18-alpine as frontend-builder
+FROM --platform=$BUILDPLATFORM node:18-alpine as frontend-builder
 WORKDIR /frontend
 COPY frontend/package*.json ./
 RUN npm ci

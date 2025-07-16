@@ -4,6 +4,7 @@ services:
     container_name: seasonarr
     restart: unless-stopped
     hostname: seasonarr
+    platform: linux/amd64
     environment:
       - PUID=1000
       - PGID=1000
