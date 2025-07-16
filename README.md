@@ -69,17 +69,6 @@
        volumes:
          - seasonarr_data:/app/data
          - /etc/localtime:/etc/localtime:ro
-       depends_on:
-         - seasonarr-db
-       networks:
-         - sonarrNetwork
-
-     seasonarr-db:
-       container_name: seasonarr-db
-       image: alpine:latest
-       command: ["sh", "-c", "mkdir -p /data && touch /data/seasonarr.db && tail -f /dev/null"]
-       volumes:
-         - seasonarr_data:/data
        networks:
          - sonarrNetwork
 
