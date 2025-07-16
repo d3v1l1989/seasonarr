@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import uvicorn
+import os
 from database import get_db, init_db
 from models import User, SonarrInstance, UserSettings, Notification, ActivityLog
 from auth import verify_token, get_current_user
@@ -26,9 +27,11 @@ app = FastAPI(title="Seasonarr API", version="1.0.0")
 # Add GZip compression middleware (should be first)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+# Configure CORS origins from environment variable or default to all
+cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
