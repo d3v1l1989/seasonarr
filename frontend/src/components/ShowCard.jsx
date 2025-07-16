@@ -54,11 +54,11 @@ const ShowCard = memo(function ShowCard({ show, instanceId, isSelected, onSelect
         }
       }
       
-      await sonarr.seasonIt(show.id, seasonNumber);
+      await sonarr.seasonIt(show.id, seasonNumber, instanceId);
     } catch (error) {
       console.error('Season It failed:', error);
     }
-  }, [show.id, show.title]);
+  }, [show.id, show.title, instanceId]);
 
   const handleCardClick = useCallback(() => {
     if (bulkMode) {

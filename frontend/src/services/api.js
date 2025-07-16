@@ -90,8 +90,8 @@ export const sonarr = {
     });
     return api.get(`/shows/${showId}?${params}`);
   },
-  seasonIt: (showId, seasonNumber = null) => 
-    api.post('/season-it', { show_id: showId, season_number: seasonNumber }),
+  seasonIt: (showId, seasonNumber = null, instanceId = null) => 
+    api.post('/season-it', { show_id: showId, season_number: seasonNumber, instance_id: instanceId }),
   getActivityLogs: (instanceId = null, page = 1, pageSize = 20) => {
     const params = new URLSearchParams({
       page,

@@ -89,7 +89,7 @@ export default function ShowDetail() {
         }
       }
       
-      await sonarr.seasonIt(show.id, seasonNumber);
+      await sonarr.seasonIt(show.id, seasonNumber, instanceId);
     } catch (error) {
       console.error('Season It failed:', error);
     }

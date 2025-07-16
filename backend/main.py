@@ -544,7 +544,7 @@ async def season_it(
     service = SeasonItService(db, current_user.id)
     
     try:
-        result = await service.process_season_it(request.show_id, request.season_number)
+        result = await service.process_season_it(request.show_id, request.season_number, request.instance_id)
         return {"message": "Season It process completed", "result": result}
     except Exception as e:
         logger.error(f"Season It error: {e}")

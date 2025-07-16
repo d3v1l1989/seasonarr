@@ -315,7 +315,8 @@ export default function Dashboard() {
         id: showId,
         name: null, // Backend will fetch the name
         season_number: null, // null for all seasons
-        poster_url: null // Backend will fetch the poster URL
+        poster_url: null, // Backend will fetch the poster URL
+        instance_id: selectedInstance.id
       }));
       
       // Call the new bulk Season It API

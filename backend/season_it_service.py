@@ -43,11 +43,11 @@ class SeasonItService:
             activity.completed_at = datetime.utcnow()
         self.db.commit()
 
-    async def process_season_it(self, show_id: int, season_number: Optional[int] = None) -> Dict[str, Any]:
+    async def process_season_it(self, show_id: int, season_number: Optional[int] = None, instance_id: Optional[int] = None) -> Dict[str, Any]:
         activity = None
         try:
             # Get series data first so we can include poster info
-            instance = self._get_sonarr_instance(show_id)
+            instance = self._get_sonarr_instance_by_id(instance_id) if instance_id else self._get_sonarr_instance(show_id)
             if not instance:
                 raise Exception("No Sonarr instance found for this show")
 
@@ -696,6 +696,13 @@ class SeasonItService:
             SonarrInstance.owner_id == self.user_id,
             SonarrInstance.is_active == True
         ).first()
+    
+    def _get_sonarr_instance_by_id(self, instance_id: int) -> Optional[SonarrInstance]:
+        return self.db.query(SonarrInstance).filter(
+            SonarrInstance.id == instance_id,
+            SonarrInstance.owner_id == self.user_id,
+            SonarrInstance.is_active == True
+        ).first()
 
     async def _get_series_data(self, client: SonarrClient, show_id: int) -> Dict[str, Any]:
         import httpx
@@ -730,7 +737,8 @@ class SeasonItService:
         
         try:
             # Get Sonarr instance
-            instance = self._get_sonarr_instance(show_id)
+            instance_id = item.get('instance_id')
+            instance = self._get_sonarr_instance_by_id(instance_id) if instance_id else self._get_sonarr_instance(show_id)
             if not instance:
                 raise Exception("No Sonarr instance found for this show")
                 

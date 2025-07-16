@@ -57,6 +57,7 @@ class ShowResponse(BaseModel):
 class SeasonItRequest(BaseModel):
     show_id: int
     season_number: Optional[int] = None
+    instance_id: int
 
 class ProgressUpdate(BaseModel):
     message: str
