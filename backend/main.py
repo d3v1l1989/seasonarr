@@ -490,14 +490,19 @@ async def proxy_image(
     try:
         from urllib.parse import unquote
         decoded_url = unquote(url)
-        full_url = f"{instance_url.rstrip('/')}{decoded_url}"
+        # Use the API MediaCover endpoint instead of the direct path to bypass basic auth
+        if decoded_url.startswith('/MediaCover/'):
+            api_url = decoded_url.replace('/MediaCover/', '/api/v3/MediaCover/')
+        else:
+            api_url = decoded_url
+        full_url = f"{instance_url.rstrip('/')}{api_url}"
         headers = {"X-Api-Key": instance_api_key}
         
         logger.info(f"Proxying image: {full_url}")
         logger.info(f"Headers: {headers}")
         
         # Load image content and return it (simpler approach)
-        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0), follow_redirects=True) as client:
             response = await client.get(full_url, headers=headers)
             logger.info(f"Response status: {response.status_code}")
             
