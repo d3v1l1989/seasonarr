@@ -1,0 +1,37 @@
+services:
+  seasonarr:
+    image: ghcr.io/d3v1l1989/seasonarr:latest
+    container_name: seasonarr
+    restart: unless-stopped
+    hostname: seasonarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - DATABASE_URL=sqlite:///./data/seasonarr.db
+      - JWT_SECRET_KEY=change-this-to-a-secure-random-string
+    volumes:
+      - seasonarr_data:/app/data
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - seasonarr-db
+    ports:
+      - "8000:8000"
+    networks:
+      - sonarrNetwork
+
+  seasonarr-db:
+    container_name: seasonarr-db
+    image: alpine:latest
+    command: ["sh", "-c", "mkdir -p /data && touch /data/seasonarr.db && tail -f /dev/null"]
+    volumes:
+      - seasonarr_data:/data
+    networks:
+      - sonarrNetwork
+
+volumes:
+  seasonarr_data:
+
+networks:
+  sonarrNetwork:
+    external: true
