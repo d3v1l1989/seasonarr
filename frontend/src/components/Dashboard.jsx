@@ -11,25 +11,41 @@ import logoTransparent from '../assets/logotransparent.png';
 export default function Dashboard() {
   const navigate = useNavigate();
   const [instances, setInstances] = useState([]);
-  const [selectedInstance, setSelectedInstance] = useState(null);
+  const [selectedInstance, setSelectedInstance] = useState(() => {
+    const savedInstanceId = localStorage.getItem('seasonarr_selected_instance');
+    return savedInstanceId ? { id: parseInt(savedInstanceId, 10) } : null;
+  });
   const [shows, setShows] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => {
+    const savedPage = localStorage.getItem('seasonarr_current_page');
+    return savedPage ? parseInt(savedPage, 10) : 1;
+  });
   const [totalPages, setTotalPages] = useState(1);
   const [user, setUser] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [filters, setFilters] = useState({
-    search: '',
-    status: '',
-    missing_episodes: true, // Default to showing missing episodes
-    sort: 'title_asc', // Default to title A-Z
-    network: '',
-    genres: [],
-    year_from: '',
-    year_to: '',
-    runtime_min: '',
-    runtime_max: '',
-    certification: ''
+  const [filters, setFilters] = useState(() => {
+    const savedFilters = localStorage.getItem('seasonarr_filters');
+    if (savedFilters) {
+      try {
+        return JSON.parse(savedFilters);
+      } catch (e) {
+        console.warn('Failed to parse saved filters:', e);
+      }
+    }
+    return {
+      search: '',
+      status: '',
+      missing_episodes: true, // Default to showing missing episodes
+      sort: 'title_asc', // Default to title A-Z
+      network: '',
+      genres: [],
+      year_from: '',
+      year_to: '',
+      runtime_min: '',
+      runtime_max: '',
+      certification: ''
+    };
   });
   const [userSettings, setUserSettings] = useState({
     shows_per_page: 35,
@@ -45,7 +61,10 @@ export default function Dashboard() {
     year_range: { min: null, max: null },
     runtime_range: { min: null, max: null }
   });
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(() => {
+    const saved = localStorage.getItem('seasonarr_show_advanced_filters');
+    return saved ? JSON.parse(saved) : false;
+  });
   const [statistics, setStatistics] = useState({
     totalShows: 0,
     totalMissingEpisodes: 0,
@@ -95,12 +114,25 @@ export default function Dashboard() {
       const loadedSettings = response.data;
       setUserSettings(loadedSettings);
       
-      // Apply default settings
-      setFilters(prev => ({
-        ...prev,
-        sort: loadedSettings.default_sort,
-        missing_episodes: loadedSettings.default_show_missing_only
-      }));
+      // Apply default settings only if no saved filters exist
+      const savedFilters = localStorage.getItem('seasonarr_filters');
+      if (!savedFilters) {
+        const defaultFilters = {
+          search: '',
+          status: '',
+          missing_episodes: loadedSettings.default_show_missing_only,
+          sort: loadedSettings.default_sort,
+          network: '',
+          genres: [],
+          year_from: '',
+          year_to: '',
+          runtime_min: '',
+          runtime_max: '',
+          certification: ''
+        };
+        setFilters(defaultFilters);
+        localStorage.setItem('seasonarr_filters', JSON.stringify(defaultFilters));
+      }
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -110,8 +142,20 @@ export default function Dashboard() {
     try {
       const response = await sonarr.getInstances();
       setInstances(response.data);
-      if (response.data.length > 0) {
+      
+      // Try to restore saved instance or use first available
+      const savedInstanceId = localStorage.getItem('seasonarr_selected_instance');
+      if (savedInstanceId) {
+        const savedInstance = response.data.find(inst => inst.id === parseInt(savedInstanceId, 10));
+        if (savedInstance) {
+          setSelectedInstance(savedInstance);
+        } else if (response.data.length > 0) {
+          setSelectedInstance(response.data[0]);
+          localStorage.setItem('seasonarr_selected_instance', response.data[0].id.toString());
+        }
+      } else if (response.data.length > 0) {
         setSelectedInstance(response.data[0]);
+        localStorage.setItem('seasonarr_selected_instance', response.data[0].id.toString());
       }
     } catch (error) {
       console.error('Error loading instances:', error);
@@ -207,23 +251,27 @@ export default function Dashboard() {
   const handleInstanceChange = (instance) => {
     setSelectedInstance(instance);
     setPage(1);
+    localStorage.setItem('seasonarr_selected_instance', instance.id.toString());
+    localStorage.setItem('seasonarr_current_page', '1');
   };
 
   const handleFilterChange = useCallback((newFilters) => {
     setFilters(newFilters);
     setPage(1);
+    localStorage.setItem('seasonarr_filters', JSON.stringify(newFilters));
+    localStorage.setItem('seasonarr_current_page', '1');
   }, []);
 
   const handleAdvancedFilterChange = useCallback((filterType, value) => {
-    setFilters(prev => ({
-      ...prev,
-      [filterType]: value
-    }));
+    const newFilters = { ...filters, [filterType]: value };
+    setFilters(newFilters);
     setPage(1);
-  }, []);
+    localStorage.setItem('seasonarr_filters', JSON.stringify(newFilters));
+    localStorage.setItem('seasonarr_current_page', '1');
+  }, [filters]);
 
   const resetAllFilters = () => {
-    setFilters({
+    const resetFilters = {
       search: '',
       status: '',
       missing_episodes: userSettings.default_show_missing_only,
@@ -235,13 +283,19 @@ export default function Dashboard() {
       runtime_min: '',
       runtime_max: '',
       certification: ''
-    });
+    };
+    setFilters(resetFilters);
     setPage(1);
+    localStorage.setItem('seasonarr_filters', JSON.stringify(resetFilters));
+    localStorage.setItem('seasonarr_current_page', '1');
   };
 
   const handleSearchChange = (searchTerm) => {
-    setFilters(prev => ({ ...prev, search: searchTerm }));
+    const newFilters = { ...filters, search: searchTerm };
+    setFilters(newFilters);
     setPage(1);
+    localStorage.setItem('seasonarr_filters', JSON.stringify(newFilters));
+    localStorage.setItem('seasonarr_current_page', '1');
   };
 
   const handleAddSuccess = () => {
@@ -518,7 +572,11 @@ export default function Dashboard() {
               </button>
               
               <button 
-                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                onClick={() => {
+                  const newValue = !showAdvancedFilters;
+                  setShowAdvancedFilters(newValue);
+                  localStorage.setItem('seasonarr_show_advanced_filters', JSON.stringify(newValue));
+                }}
                 className={`bulk-toggle-btn ${showAdvancedFilters ? 'active' : ''}`}
               >
                 {showAdvancedFilters ? 'Hide Advanced' : 'Advanced Filters'}
@@ -683,7 +741,10 @@ export default function Dashboard() {
         <Pagination 
           currentPage={page}
           totalPages={totalPages}
-          onPageChange={setPage}
+          onPageChange={(newPage) => {
+            setPage(newPage);
+            localStorage.setItem('seasonarr_current_page', newPage.toString());
+          }}
         />
         
         {loading ? (
@@ -707,7 +768,10 @@ export default function Dashboard() {
         <Pagination 
           currentPage={page}
           totalPages={totalPages}
-          onPageChange={setPage}
+          onPageChange={(newPage) => {
+            setPage(newPage);
+            localStorage.setItem('seasonarr_current_page', newPage.toString());
+          }}
         />
         
       </div>

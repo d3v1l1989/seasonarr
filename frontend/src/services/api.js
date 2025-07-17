@@ -35,8 +35,8 @@ export const auth = {
     return response.data;
   },
   
-  login: async (username, password) => {
-    const response = await api.post('/login', { username, password });
+  login: async (username, password, rememberMe = false) => {
+    const response = await api.post('/login', { username, password, remember_me: rememberMe });
     const { access_token } = response.data;
     localStorage.setItem('token', access_token);
     return response.data;
@@ -54,7 +54,10 @@ export const auth = {
 export const sonarr = {
   getInstances: () => api.get('/sonarr'),
   createInstance: (data) => api.post('/sonarr', data),
+  updateInstance: (id, data) => api.put(`/sonarr/${id}`, data),
   deleteInstance: (id) => api.delete(`/sonarr/${id}`),
+  testConnection: (data) => api.post('/sonarr/test-connection', data),
+  testExistingConnection: (id) => api.post(`/sonarr/${id}/test-connection`),
   getShows: (instanceId, page = 1, pageSize = 36, filters = {}) => {
     const params = new URLSearchParams({
       instance_id: instanceId,

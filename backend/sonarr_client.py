@@ -28,7 +28,7 @@ class SonarrClient:
             logger.error(f"Connection test failed: {e}")
             return False
 
-    async def get_series(self, page: int = 1, page_size: int = 35, search: str = "", status: str = "", monitored: bool = None, missing_episodes: bool = None, network: str = "", genres: List[str] = None, year_from: int = None, year_to: int = None, runtime_min: int = None, runtime_max: int = None, certification: str = "", hide_incomplete_seasons: bool = False) -> Dict[str, Any]:
+    async def get_series(self, page: int = 1, page_size: int = 35, search: str = "", status: str = "", monitored: bool = None, missing_episodes: bool = None, network: str = "", genres: List[str] = None, year_from: int = None, year_to: int = None, runtime_min: int = None, runtime_max: int = None, certification: str = "") -> Dict[str, Any]:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
@@ -143,39 +143,8 @@ class SonarrClient:
                     )
                     shows.append(show)
                 
-                # Filter out shows with incomplete seasons if requested
-                if hide_incomplete_seasons:
-                    filtered_shows = []
-                    for show in shows:
-                        try:
-                            # Check if show has any seasons with future episodes
-                            future_check = await self.has_future_episodes(show.id)
-                            incomplete_seasons = future_check.get("seasons_incomplete", [])
-                            
-                            # If the show has missing episodes, check if any of those seasons are incomplete
-                            if show.missing_episode_count > 0:
-                                # Get missing episodes info
-                                missing_data = await self.get_missing_episodes(show.id)
-                                seasons_with_missing = missing_data.get("seasons_with_missing", {})
-                                
-                                # Check if any seasons with missing episodes are incomplete
-                                has_incomplete_missing_seasons = any(
-                                    season_num in incomplete_seasons 
-                                    for season_num in seasons_with_missing.keys()
-                                )
-                                
-                                # Only include the show if it doesn't have missing episodes in incomplete seasons
-                                if not has_incomplete_missing_seasons:
-                                    filtered_shows.append(show)
-                            else:
-                                # Show has no missing episodes, include it
-                                filtered_shows.append(show)
-                        except Exception as e:
-                            logger.warning(f"Error checking incomplete seasons for show {show.title}: {e}")
-                            # On error, include the show to avoid breaking the UI
-                            filtered_shows.append(show)
-                    
-                    shows = filtered_shows
+                # Note: hide_incomplete_seasons functionality removed as it's redundant
+                # Season It operations already skip incomplete seasons automatically
                 
                 start = (page - 1) * page_size
                 end = start + page_size
@@ -822,6 +791,7 @@ class SonarrClient:
         except Exception as e:
             logger.error(f"Error grabbing release: {e}")
             raise
+
 
 async def test_sonarr_connection(url: str, api_key: str) -> bool:
     try:

@@ -42,7 +42,6 @@ class UserSettings(Base):
     shows_per_page = Column(Integer, default=35)
     default_sort = Column(String, default='title_asc')
     default_show_missing_only = Column(Boolean, default=True)
-    hide_incomplete_seasons = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     

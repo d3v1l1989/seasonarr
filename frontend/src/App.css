@@ -161,6 +161,28 @@ body {
   box-shadow: 0 0 0 2px rgba(78, 205, 196, 0.3);
 }
 
+.form-group.remember-me {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.form-group.remember-me label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.form-group.remember-me input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  accent-color: #4ecdc4;
+}
+
 .auth-form button {
   width: 100%;
   padding: 0.75rem;
@@ -1908,6 +1930,11 @@ body {
   .dashboard-controls {
     flex-direction: column;
     gap: 0.5rem;
+    display: none;
+  }
+  
+  .dashboard-controls.mobile-open {
+    display: flex;
   }
   
   .dashboard-controls button {
@@ -3148,6 +3175,387 @@ body {
 .back-btn:hover {
   background: #444;
   transform: translateY(-1px);
+}
+
+/* Sonarr Instance Management */
+.sonarr-instances-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.no-instances {
+  text-align: center;
+  color: #999;
+  padding: 2rem;
+  font-style: italic;
+}
+
+.sonarr-instance-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.sonarr-instance-card:hover {
+  border-color: rgba(78, 205, 196, 0.3);
+}
+
+.instance-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.instance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.instance-header h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.2rem;
+}
+
+.instance-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.instance-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.instance-details p {
+  margin: 0;
+  color: #ccc;
+  font-size: 0.9rem;
+}
+
+.instance-details strong {
+  color: #fff;
+  margin-right: 0.5rem;
+}
+
+.status {
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.status.active {
+  background: rgba(76, 175, 80, 0.2);
+  color: #81c784;
+}
+
+.status.inactive {
+  background: rgba(244, 67, 54, 0.2);
+  color: #e57373;
+}
+
+.instance-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.form-group .optional {
+  color: #999;
+  font-weight: normal;
+  font-size: 0.8rem;
+}
+
+.form-input {
+  padding: 0.75rem;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 5px;
+  color: white;
+  font-size: 0.9rem;
+  transition: border-color 0.3s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #4ecdc4;
+}
+
+.form-input::placeholder {
+  color: #666;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: linear-gradient(45deg, #d94444, #3aa89a);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(78, 205, 196, 0.3);
+}
+
+.btn-secondary {
+  background: #333;
+  color: white;
+  border: 1px solid #555;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #444;
+  border-color: #4ecdc4;
+}
+
+.btn-danger {
+  background: #d32f2f;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #f44336;
+  transform: translateY(-1px);
+}
+
+.btn-cancel {
+  background: #666;
+  color: white;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: #777;
+}
+
+.btn-small {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  min-width: 60px;
+}
+
+/* Connection message styling */
+.connection-message {
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  border: 1px solid;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.connection-message.success {
+  background: rgba(76, 175, 80, 0.1);
+  border-color: rgba(76, 175, 80, 0.3);
+  color: #81c784;
+}
+
+.connection-message.error {
+  background: rgba(244, 67, 54, 0.1);
+  border-color: rgba(244, 67, 54, 0.3);
+  color: #e57373;
+}
+
+.connection-message.info {
+  background: rgba(33, 150, 243, 0.1);
+  border-color: rgba(33, 150, 243, 0.3);
+  color: #64b5f6;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Delete Modal Styling */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.delete-modal {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 15px;
+  padding: 0;
+  max-width: 450px;
+  width: 90%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.modal-header {
+  background: linear-gradient(45deg, #d94444, #3aa89a);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 15px 15px 0 0;
+  text-align: center;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  color: #fff;
+  text-align: center;
+}
+
+.modal-body p {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.modal-body strong {
+  color: #4ecdc4;
+}
+
+.instance-name {
+  color: #4ecdc4 !important;
+  font-size: 1.2rem !important;
+  font-weight: 600 !important;
+  margin: 0.5rem 0 1.5rem 0 !important;
+  text-align: center;
+  background: rgba(78, 205, 196, 0.1);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(78, 205, 196, 0.3);
+  display: inline-block;
+  max-width: fit-content;
+}
+
+.warning-text {
+  color: #e57373 !important;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 0 0 15px 15px;
+}
+
+.modal-actions .btn {
+  min-width: 100px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Mobile responsiveness for modal */
+@media (max-width: 768px) {
+  .delete-modal {
+    width: 95%;
+    max-width: none;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+  }
+  
+  .modal-actions .btn {
+    width: 100%;
+  }
+}
+
+/* Mobile responsiveness for Sonarr instance management */
+@media (max-width: 768px) {
+  .instance-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .instance-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .btn {
+    width: 100%;
+  }
 }
 
 .settings-sections {

@@ -10,7 +10,7 @@ import os
 from database import get_db, init_db
 from models import User, SonarrInstance, UserSettings, Notification, ActivityLog
 from auth import verify_token, get_current_user
-from schemas import UserLogin, UserRegister, SonarrInstanceCreate, SonarrInstanceResponse, SeasonItRequest, UserSettingsResponse, UserSettingsUpdate, NotificationResponse, NotificationUpdate, ActivityLogResponse
+from schemas import UserLogin, UserRegister, SonarrInstanceCreate, SonarrInstanceUpdate, SonarrInstanceResponse, SeasonItRequest, UserSettingsResponse, UserSettingsUpdate, NotificationResponse, NotificationUpdate, ActivityLogResponse
 from websocket_manager import manager
 import logging
 import json
@@ -107,6 +107,7 @@ async def register_first_user(user_data: UserRegister, db: Session = Depends(get
 @app.post("/api/login")
 async def login(user_data: UserLogin, db: Session = Depends(get_db)):
     from auth import authenticate_user, create_access_token
+    from datetime import timedelta
     
     user = authenticate_user(db, user_data.username, user_data.password)
     if not user:
@@ -115,7 +116,9 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
             detail="Incorrect username or password"
         )
     
-    access_token = create_access_token(data={"sub": user.username})
+    # Set token expiration based on remember_me flag
+    expires_delta = timedelta(days=30) if user_data.remember_me else None
+    access_token = create_access_token(data={"sub": user.username}, expires_delta=expires_delta)
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.get("/api/me")
@@ -159,6 +162,92 @@ async def get_sonarr_instances(
     ).order_by(SonarrInstance.created_at.desc()).all()
     return instances
 
+@app.put("/api/sonarr/{instance_id}", response_model=SonarrInstanceResponse)
+async def update_sonarr_instance(
+    instance_id: int,
+    instance_data: SonarrInstanceUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    instance = db.query(SonarrInstance).filter(
+        SonarrInstance.id == instance_id,
+        SonarrInstance.owner_id == current_user.id,
+        SonarrInstance.is_active == True
+    ).first()
+    
+    if not instance:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Sonarr instance not found"
+        )
+    
+    # Test connection if URL or API key is being updated
+    if instance_data.url or instance_data.api_key:
+        from sonarr_client import test_sonarr_connection
+        test_url = instance_data.url or instance.url
+        test_api_key = instance_data.api_key or instance.api_key
+        
+        if not await test_sonarr_connection(test_url, test_api_key):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not connect to Sonarr instance with provided settings"
+            )
+    
+    # Update fields
+    if instance_data.name is not None:
+        instance.name = instance_data.name
+    if instance_data.url is not None:
+        instance.url = instance_data.url
+    if instance_data.api_key is not None:
+        instance.api_key = instance_data.api_key
+    if instance_data.is_active is not None:
+        instance.is_active = instance_data.is_active
+    
+    db.commit()
+    db.refresh(instance)
+    return instance
+
+@app.post("/api/sonarr/test-connection")
+async def test_sonarr_connection_endpoint(
+    instance_data: SonarrInstanceCreate,
+    current_user: User = Depends(get_current_user)
+):
+    from sonarr_client import test_sonarr_connection
+    
+    success = await test_sonarr_connection(instance_data.url, instance_data.api_key)
+    
+    if success:
+        return {"success": True, "message": "Connection successful"}
+    else:
+        return {"success": False, "message": "Connection failed"}
+
+@app.post("/api/sonarr/{instance_id}/test-connection")
+async def test_existing_sonarr_connection(
+    instance_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    instance = db.query(SonarrInstance).filter(
+        SonarrInstance.id == instance_id,
+        SonarrInstance.owner_id == current_user.id,
+        SonarrInstance.is_active == True
+    ).first()
+    
+    if not instance:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Sonarr instance not found"
+        )
+    
+    from sonarr_client import test_sonarr_connection
+    
+    success = await test_sonarr_connection(instance.url, instance.api_key)
+    
+    if success:
+        return {"success": True, "message": "Connection successful"}
+    else:
+        return {"success": False, "message": "Connection failed"}
+
 @app.delete("/api/sonarr/{instance_id}")
 async def delete_sonarr_instance(
     instance_id: int,
@@ -196,7 +285,6 @@ async def get_shows(
     runtime_min: Optional[int] = Query(None),
     runtime_max: Optional[int] = Query(None),
     certification: str = "",
-    hide_incomplete_seasons: bool = False,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -214,14 +302,9 @@ async def get_shows(
             detail="Sonarr instance not found"
         )
     
-    # Get user settings to determine if we should hide incomplete seasons
+    # Get user settings (keeping for other settings)
     from models import UserSettings
     user_settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
-    
-    # Use the setting from database if available, otherwise use the parameter
-    should_hide_incomplete = hide_incomplete_seasons
-    if user_settings:
-        should_hide_incomplete = user_settings.hide_incomplete_seasons or hide_incomplete_seasons
     
     client = SonarrClient(instance.url, instance.api_key, instance.id)
     try:
@@ -239,7 +322,6 @@ async def get_shows(
             runtime_min=runtime_min,
             runtime_max=runtime_max,
             certification=certification,
-            hide_incomplete_seasons=should_hide_incomplete
         )
     except Exception as e:
         raise HTTPException(

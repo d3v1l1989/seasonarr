@@ -4,6 +4,7 @@ import logoTransparent from '../assets/logotransparent.png';
 
 export default function Login({ onLogin }) {
   const [credentials, setCredentials] = useState({ username: '', password: '' });
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -13,7 +14,7 @@ export default function Login({ onLogin }) {
     setError('');
 
     try {
-      await auth.login(credentials.username, credentials.password);
+      await auth.login(credentials.username, credentials.password, rememberMe);
       onLogin();
     } catch {
       setError('Invalid username or password');
@@ -48,6 +49,16 @@ export default function Login({ onLogin }) {
               onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
               required
             />
+          </div>
+          <div className="form-group remember-me">
+            <label>
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
+              Remember me for 30 days
+            </label>
           </div>
           {error && <div className="error">{error}</div>}
           <button type="submit" disabled={loading}>

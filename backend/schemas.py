@@ -5,6 +5,7 @@ from datetime import datetime
 class UserLogin(BaseModel):
     username: str
     password: str
+    remember_me: Optional[bool] = False
 
 class UserRegister(BaseModel):
     username: str
@@ -71,7 +72,6 @@ class UserSettingsResponse(BaseModel):
     shows_per_page: int
     default_sort: str
     default_show_missing_only: bool
-    hide_incomplete_seasons: bool
     
     class Config:
         from_attributes = True
@@ -83,7 +83,6 @@ class UserSettingsUpdate(BaseModel):
     shows_per_page: Optional[int] = None
     default_sort: Optional[str] = None
     default_show_missing_only: Optional[bool] = None
-    hide_incomplete_seasons: Optional[bool] = None
 
 class NotificationCreate(BaseModel):
     title: str

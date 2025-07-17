@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { settings } from '../services/api';
 import logoTransparent from '../assets/logotransparent.png';
+import SonarrInstanceManager from './SonarrInstanceManager';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -12,7 +13,6 @@ export default function Settings() {
     shows_per_page: 36,
     default_sort: 'title_asc',
     default_show_missing_only: true,
-    hide_incomplete_seasons: false
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -77,6 +77,9 @@ export default function Settings() {
         </header>
 
         <div className="settings-sections">
+          {/* Sonarr Instance Management */}
+          <SonarrInstanceManager />
+          
           {/* Season Pack Processing */}
           <div className="settings-section">
             <h2>Season Pack Processing</h2>
@@ -188,20 +191,6 @@ export default function Settings() {
               </div>
             </div>
 
-            <div className="setting-item">
-              <div className="setting-info">
-                <label>Hide Incomplete Seasons</label>
-                <p>Hide shows from the dashboard that only have seasons with episodes that haven't aired yet. Season It operations will always skip incomplete seasons regardless of this setting.</p>
-              </div>
-              <div className="setting-control">
-                <input
-                  type="checkbox"
-                  checked={userSettings.hide_incomplete_seasons}
-                  onChange={(e) => handleSettingChange('hide_incomplete_seasons', e.target.checked)}
-                  className="toggle-switch"
-                />
-              </div>
-            </div>
           </div>
         </div>
 
