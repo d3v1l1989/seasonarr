@@ -149,13 +149,13 @@ class SonarrClient:
                     for show in shows:
                         try:
                             # Check if show has any seasons with future episodes
-                            future_check = await self.has_future_episodes(show["id"])
+                            future_check = await self.has_future_episodes(show.id)
                             incomplete_seasons = future_check.get("seasons_incomplete", [])
                             
                             # If the show has missing episodes, check if any of those seasons are incomplete
-                            if show["missing_episode_count"] > 0:
+                            if show.missing_episode_count > 0:
                                 # Get missing episodes info
-                                missing_data = await self.get_missing_episodes(show["id"])
+                                missing_data = await self.get_missing_episodes(show.id)
                                 seasons_with_missing = missing_data.get("seasons_with_missing", {})
                                 
                                 # Check if any seasons with missing episodes are incomplete
@@ -171,7 +171,7 @@ class SonarrClient:
                                 # Show has no missing episodes, include it
                                 filtered_shows.append(show)
                         except Exception as e:
-                            logger.warning(f"Error checking incomplete seasons for show {show['title']}: {e}")
+                            logger.warning(f"Error checking incomplete seasons for show {show.title}: {e}")
                             # On error, include the show to avoid breaking the UI
                             filtered_shows.append(show)
                     
