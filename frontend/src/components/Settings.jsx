@@ -17,6 +17,8 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
+  const [purging, setPurging] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -54,6 +56,30 @@ export default function Settings() {
       ...prev,
       [key]: value
     }));
+  };
+
+  const handlePurgeDatabase = async () => {
+    setPurging(true);
+    setMessage('');
+
+    try {
+      await settings.purgeDatabase();
+      setMessage('Database purged successfully! All your data has been reset.');
+      setShowPurgeConfirm(false);
+      
+      // Reload settings to show defaults
+      await loadSettings();
+      
+      // Redirect to home after a short delay
+      setTimeout(() => {
+        navigate('/');
+      }, 2000);
+    } catch (error) {
+      console.error('Error purging database:', error);
+      setMessage('Error purging database. Please try again.');
+    } finally {
+      setPurging(false);
+    }
   };
 
   if (loading) {
@@ -192,6 +218,26 @@ export default function Settings() {
             </div>
 
           </div>
+
+          {/* Hard Reset Section */}
+          <div className="settings-section danger-section">
+            <h2>Danger Zone</h2>
+            <div className="setting-item">
+              <div className="setting-info">
+                <label>Hard Reset (Purge Database)</label>
+                <p>Permanently delete all your data including Sonarr instances, settings, notifications, and activity logs. This action cannot be undone.</p>
+              </div>
+              <div className="setting-control">
+                <button
+                  onClick={() => setShowPurgeConfirm(true)}
+                  disabled={purging}
+                  className="danger-btn"
+                >
+                  {purging ? 'Purging...' : 'Purge Database'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="settings-actions">
@@ -209,6 +255,40 @@ export default function Settings() {
           )}
         </div>
       </div>
+
+      {/* Purge Confirmation Modal */}
+      {showPurgeConfirm && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>Confirm Hard Reset</h3>
+            <p>Are you sure you want to purge all your data?</p>
+            <p><strong>This will permanently delete:</strong></p>
+            <ul>
+              <li>All Sonarr instances</li>
+              <li>All settings and preferences</li>
+              <li>All notifications</li>
+              <li>All activity logs</li>
+            </ul>
+            <p className="warning-text">This action cannot be undone!</p>
+            <div className="modal-actions">
+              <button
+                onClick={() => setShowPurgeConfirm(false)}
+                className="cancel-btn"
+                disabled={purging}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePurgeDatabase}
+                className="danger-btn"
+                disabled={purging}
+              >
+                {purging ? 'Purging...' : 'Yes, Purge Database'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

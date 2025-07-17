@@ -769,6 +769,42 @@ async def update_user_settings(
     
     return settings
 
+@app.delete("/api/purge-database")
+async def purge_user_database(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Purge all user data from the database (hard reset)"""
+    try:
+        # Delete all user-related data in the correct order to avoid foreign key constraints
+        
+        # Delete activity logs
+        db.query(ActivityLog).filter(ActivityLog.user_id == current_user.id).delete()
+        
+        # Delete notifications
+        db.query(Notification).filter(Notification.user_id == current_user.id).delete()
+        
+        # Delete user settings
+        db.query(UserSettings).filter(UserSettings.user_id == current_user.id).delete()
+        
+        # Delete Sonarr instances
+        db.query(SonarrInstance).filter(SonarrInstance.owner_id == current_user.id).delete()
+        
+        # Commit all deletions
+        db.commit()
+        
+        logger.info(f"User {current_user.username} purged all database data")
+        
+        return {"message": "Database purged successfully. All user data has been deleted."}
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error purging database for user {current_user.username}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to purge database: {str(e)}"
+        )
+
 @app.get("/api/notifications", response_model=list[NotificationResponse])
 async def get_notifications(
     skip: int = 0,

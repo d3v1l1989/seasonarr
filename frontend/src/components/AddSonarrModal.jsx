@@ -9,6 +9,40 @@ export default function AddSonarrModal({ isOpen, onClose, onSuccess }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+
+  const handleTestConnection = async () => {
+    if (!formData.url.trim() || !formData.api_key.trim()) {
+      setError('URL and API key are required for testing');
+      return;
+    }
+
+    setTestingConnection(true);
+    setError('');
+    setTestResult(null);
+
+    try {
+      const response = await sonarr.testConnection({
+        name: formData.name || 'Test Instance',
+        url: formData.url,
+        api_key: formData.api_key
+      });
+
+      if (response.data.success) {
+        setTestResult({ success: true, message: 'Connection successful!' });
+      } else {
+        setTestResult({ success: false, message: 'Connection failed' });
+      }
+    } catch (err) {
+      console.error('Error testing connection:', err);
+      setTestResult({ success: false, message: 'Connection test failed' });
+    } finally {
+      setTestingConnection(false);
+      // Clear test result after 5 seconds
+      setTimeout(() => setTestResult(null), 5000);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -73,11 +107,25 @@ export default function AddSonarrModal({ isOpen, onClose, onSuccess }) {
           
           {error && <div className="error">{error}</div>}
           
+          {testResult && (
+            <div className={`test-result ${testResult.success ? 'success' : 'error'}`}>
+              {testResult.message}
+            </div>
+          )}
+          
           <div className="modal-actions">
-            <button type="button" onClick={onClose} disabled={loading}>
+            <button type="button" onClick={onClose} disabled={loading || testingConnection}>
               Cancel
             </button>
-            <button type="submit" disabled={loading}>
+            <button 
+              type="button" 
+              onClick={handleTestConnection}
+              disabled={loading || testingConnection}
+              className="test-btn"
+            >
+              {testingConnection ? 'Testing...' : 'Test Connection'}
+            </button>
+            <button type="submit" disabled={loading || testingConnection}>
               {loading ? 'Adding...' : 'Add Instance'}
             </button>
           </div>

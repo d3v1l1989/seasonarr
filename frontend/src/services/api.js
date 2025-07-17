@@ -108,6 +108,7 @@ export const sonarr = {
 export const settings = {
   getSettings: () => api.get('/settings'),
   updateSettings: (settingsData) => api.put('/settings', settingsData),
+  purgeDatabase: () => api.delete('/purge-database'),
 };
 
 export default api;
