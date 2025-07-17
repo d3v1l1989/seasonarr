@@ -13,6 +13,7 @@
 ## Features
 
 - **Automated Replacement**: Safely deletes existing episodes before downloading season packs
+- **Interactive Search**: Manual search and selection of season packs with quality scoring
 - **Real-time Progress**: Live WebSocket updates showing search and download progress
 - **User Authentication**: Secure access control with JWT-based authentication
 - **Multiple Sonarr Instances**: Individual Sonarr instance management
@@ -123,9 +124,10 @@ docker run -d \
 ### Basic Operations
 
 1. **Browse Shows**: View all shows from your connected Sonarr instance(s)
-2. **Season It!**: Click the season button to process individual seasons
-3. **Show It!**: Click the show button to process all monitored seasons
-4. **Bulk Operations**: Use the bulk selector to process multiple items
+2. **Season It!**: Click the season button to automatically process individual seasons
+3. **Interactive Search**: Click the search button to manually browse and select season packs
+4. **Season It All!**: Click the show button to process all monitored seasons
+5. **Bulk Operations**: Use the bulk selector to process multiple items
 
 ### The "Season It!" Process
 
