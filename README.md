@@ -154,6 +154,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Issues**: Report bugs and feature requests on GitHub Issues
 - **Discussions**: Join the community discussions for help and ideas
 
+### ☕ Enjoying Seasonarr?
+
+If you're finding this project useful and want to show some love, feel free to buy me a coffee! It helps keep the development going.
+
+[![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/d3v1l1989)
+
 ## Disclaimer
 
 This tool is designed to work with your existing legal media library. Users are responsible for ensuring compliance with applicable laws and terms of service of their indexers and download clients.
