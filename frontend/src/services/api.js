@@ -95,6 +95,10 @@ export const sonarr = {
   },
   seasonIt: (showId, seasonNumber = null, instanceId = null) => 
     api.post('/season-it', { show_id: showId, season_number: seasonNumber, instance_id: instanceId }),
+  searchSeasonPacks: (showId, seasonNumber, instanceId, signal) => 
+    api.post('/search-season-packs', { show_id: showId, season_number: seasonNumber, instance_id: instanceId }, { signal }),
+  downloadRelease: (releaseGuid, showId, seasonNumber, instanceId, indexerId) => 
+    api.post('/download-release', { release_guid: releaseGuid, show_id: showId, season_number: seasonNumber, instance_id: instanceId, indexer_id: indexerId }),
   getActivityLogs: (instanceId = null, page = 1, pageSize = 20) => {
     const params = new URLSearchParams({
       page,

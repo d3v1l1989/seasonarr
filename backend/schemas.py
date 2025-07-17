@@ -60,6 +60,34 @@ class SeasonItRequest(BaseModel):
     season_number: Optional[int] = None
     instance_id: int
 
+class SearchSeasonPacksRequest(BaseModel):
+    show_id: int
+    season_number: int
+    instance_id: int
+
+class DownloadReleaseRequest(BaseModel):
+    release_guid: str
+    show_id: int
+    season_number: int
+    instance_id: int
+    indexer_id: int
+
+class ReleaseResponse(BaseModel):
+    guid: str
+    title: str
+    size: int
+    size_formatted: str
+    seeders: int
+    leechers: int
+    age: int
+    age_formatted: str
+    quality: str
+    quality_score: int
+    indexer: str
+    approved: bool
+    indexer_flags: List[str]
+    release_weight: int
+
 class ProgressUpdate(BaseModel):
     message: str
     progress: int

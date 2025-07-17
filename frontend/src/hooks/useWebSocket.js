@@ -49,7 +49,6 @@ export function useWebSocket(userId) {
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
-        console.log('WebSocket connected successfully');
         setConnectionStatus('connected');
         setReconnectAttempts(0);
         reconnectDelayRef.current = INITIAL_RECONNECT_DELAY;
@@ -88,13 +87,11 @@ export function useWebSocket(userId) {
       };
 
       wsRef.current.onclose = (event) => {
-        console.log('WebSocket connection closed:', event.code, event.reason);
         setConnectionStatus('disconnected');
         
         // Only attempt reconnection if not manually closed and within attempt limits
         if (!isManuallyClosedRef.current && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
           const delay = getReconnectDelay();
-          console.log(`Attempting to reconnect in ${delay}ms (attempt ${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
           
           setConnectionStatus('reconnecting');
           reconnectTimeoutRef.current = setTimeout(() => {

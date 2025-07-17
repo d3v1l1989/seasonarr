@@ -243,6 +243,7 @@ class SonarrClient:
                     "status": series_data.get("status", "unknown"),
                     "monitored": series_data.get("monitored", False),
                     "poster_url": self._get_poster_url(series_data.get("images", []), self.instance_id),
+                    "banner_url": self._get_banner_url(series_data.get("images", []), self.instance_id),
                     "episode_count": total_episode_count,
                     "missing_episode_count": missing_count,
                     "seasons": processed_seasons,
@@ -525,6 +526,11 @@ class SonarrClient:
         max_retries = 2
         for attempt in range(max_retries + 1):
             try:
+                # Check for cancellation before making the API call
+                if asyncio.current_task().cancelled():
+                    logger.info(f"🚫 Releases fetch cancelled for series {series_id} season {season_number}")
+                    raise asyncio.CancelledError()
+                
                 async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
                     logger.info(f"Fetching releases for series {series_id} season {season_number} (attempt {attempt + 1})")
                     response = await client.get(
@@ -532,6 +538,11 @@ class SonarrClient:
                         params={"seriesId": series_id, "seasonNumber": season_number},
                         headers=self.headers
                     )
+                
+                # Check for cancellation after the API call
+                if asyncio.current_task().cancelled():
+                    logger.info(f"🚫 Releases fetch cancelled for series {series_id} season {season_number} after API call")
+                    raise asyncio.CancelledError()
                 
                 logger.info(f"Release API response status: {response.status_code}")
                 
@@ -790,6 +801,105 @@ class SonarrClient:
                     
         except Exception as e:
             logger.error(f"Error grabbing release: {e}")
+            raise
+
+    async def download_release_direct(self, release_guid: str, indexer_id: int):
+        """Download a specific release by GUID and indexer_id directly"""
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
+                logger.info(f"Downloading release with GUID: {release_guid} and indexer_id: {indexer_id}")
+                
+                # Validate indexer_id
+                if not indexer_id or indexer_id <= 0:
+                    raise Exception(f"Invalid indexer_id: {indexer_id}")
+                
+                # Download the release with both guid and indexerId
+                response = await client.post(
+                    f"{self.base_url}/api/v3/release",
+                    headers=self.headers,
+                    json={"guid": release_guid, "indexerId": indexer_id}
+                )
+                
+                if response.status_code not in [200, 201]:
+                    logger.error(f"Failed to download release: {response.status_code} - {response.text}")
+                    raise Exception(f"Failed to download release: {response.status_code}")
+                
+                logger.info(f"Release download initiated successfully")
+                return response.json()
+                    
+        except Exception as e:
+            logger.error(f"Error downloading release: {str(e)}")
+            logger.error(f"Error type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            raise
+
+    async def download_release(self, release_guid: str, series_id: int = None, season_number: int = None):
+        """Download a specific release by GUID"""
+        try:
+            # First, get the release details to find the indexerId
+            async with httpx.AsyncClient() as client:
+                logger.info(f"Downloading release with GUID: {release_guid}")
+                
+                # Get releases for the specific series and season to find the one with matching GUID
+                logger.info(f"Getting releases for series {series_id} season {season_number} to find indexerId for GUID: {release_guid}")
+                
+                # Use the same parameters as the search to get the same release list
+                params = {}
+                if series_id:
+                    params["seriesId"] = series_id
+                if season_number:
+                    params["seasonNumber"] = season_number
+                
+                releases_response = await client.get(
+                    f"{self.base_url}/api/v3/release",
+                    params=params,
+                    headers=self.headers
+                )
+                
+                if releases_response.status_code != 200:
+                    logger.error(f"Failed to get releases: {releases_response.status_code}")
+                    raise Exception(f"Failed to get releases: {releases_response.status_code}")
+                
+                releases = releases_response.json()
+                logger.info(f"Found {len(releases)} total releases, searching for GUID: {release_guid}")
+                target_release = None
+                
+                # Find the release with matching GUID
+                for release in releases:
+                    if release.get("guid") == release_guid:
+                        target_release = release
+                        logger.info(f"Found target release with indexerId: {release.get('indexerId')}")
+                        break
+                
+                if not target_release:
+                    logger.error(f"Release with GUID {release_guid} not found in {len(releases)} releases")
+                    raise Exception(f"Release with GUID {release_guid} not found")
+                
+                # Extract required fields
+                indexer_id = target_release.get("indexerId")
+                if not indexer_id or indexer_id <= 0:
+                    raise Exception(f"Invalid indexerId: {indexer_id}")
+                
+                # Now download the release with both guid and indexerId
+                response = await client.post(
+                    f"{self.base_url}/api/v3/release",
+                    headers=self.headers,
+                    json={"guid": release_guid, "indexerId": indexer_id}
+                )
+                
+                if response.status_code not in [200, 201]:
+                    logger.error(f"Failed to download release: {response.status_code} - {response.text}")
+                    raise Exception(f"Failed to download release: {response.status_code}")
+                
+                logger.info(f"Release download initiated successfully")
+                return response.json()
+                    
+        except Exception as e:
+            logger.error(f"Error downloading release: {str(e)}")
+            logger.error(f"Error type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             raise
 
 

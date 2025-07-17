@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { sonarr, settings, auth } from '../services/api';
 import EnhancedProgressBar from './EnhancedProgressBar';
+import SearchResultsModal from './SearchResultsModal';
 import logoTransparent from '../assets/logotransparent.png';
 
 export default function ShowDetail() {
@@ -13,6 +14,8 @@ export default function ShowDetail() {
   const [expandedSeasons, setExpandedSeasons] = useState(new Set());
   const [instanceId, setInstanceId] = useState(null);
   const [user, setUser] = useState(null);
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [searchModalSeason, setSearchModalSeason] = useState(null);
 
   useEffect(() => {
     // Get instance ID from sessionStorage or URL params
@@ -93,6 +96,16 @@ export default function ShowDetail() {
     } catch (error) {
       console.error('Season It failed:', error);
     }
+  };
+
+  const handleInteractiveSearch = (seasonNumber) => {
+    setSearchModalSeason(seasonNumber);
+    setSearchModalOpen(true);
+  };
+
+  const handleCloseSearchModal = () => {
+    setSearchModalOpen(false);
+    setSearchModalSeason(null);
   };
 
   const formatDate = (dateString) => {
@@ -276,15 +289,26 @@ export default function ShowDetail() {
 
                   <div className="season-actions">
                     {season.missing_episode_count > 0 && season.monitored && !season.has_future_episodes && (
-                      <button 
-                        className="season-it-btn small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSeasonIt(season.seasonNumber);
-                        }}
-                      >
-                        🧂 Season It!
-                      </button>
+                      <>
+                        <button 
+                          className="season-it-btn small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSeasonIt(season.seasonNumber);
+                          }}
+                        >
+                          🧂 Season It!
+                        </button>
+                        <button 
+                          className="interactive-search-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleInteractiveSearch(season.seasonNumber);
+                          }}
+                        >
+                          🔍 Search
+                        </button>
+                      </>
                     )}
                     {season.has_future_episodes && (
                       <div className="season-incomplete-warning">
@@ -333,6 +357,15 @@ export default function ShowDetail() {
       </div>
       
       {user && <EnhancedProgressBar userId={user.id} />}
+      
+      {searchModalOpen && (
+        <SearchResultsModal
+          show={show}
+          seasonNumber={searchModalSeason}
+          instanceId={instanceId}
+          onClose={handleCloseSearchModal}
+        />
+      )}
     </div>
   );
 }

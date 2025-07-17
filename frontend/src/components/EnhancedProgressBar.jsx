@@ -126,6 +126,33 @@ export default function EnhancedProgressBar({ userId }) {
       })
     );
 
+    // Handle clear progress (for cancellations)
+    cleanupHandlers.push(
+      addMessageHandler('clear_progress', (data) => {
+        // Immediately clear the progress bar
+        setIsVisible(false);
+        setCurrentOperation(null);
+        
+        // Optional: Show a brief cancellation message
+        if (data.message) {
+          setCurrentOperation({
+            type: 'cancelled',
+            message: data.message,
+            progress: 0,
+            status: 'cancelled',
+            timestamp: Date.now()
+          });
+          setIsVisible(true);
+          
+          // Clear the cancellation message after 2 seconds
+          setTimeout(() => {
+            setIsVisible(false);
+            setCurrentOperation(null);
+          }, 2000);
+        }
+      })
+    );
+
     return () => {
       cleanupHandlers.forEach(cleanup => cleanup());
     };

@@ -909,3 +909,300 @@ class SeasonItService:
             "results": results
         }
 
+    async def search_season_packs_interactive(self, show_id: int, season_number: int, instance_id: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Search for season packs and return formatted results for interactive selection"""
+        import asyncio
+        
+        try:
+            # Get series data first
+            instance = self._get_sonarr_instance_by_id(instance_id) if instance_id else self._get_sonarr_instance(show_id)
+            if not instance:
+                raise Exception("No Sonarr instance found for this show")
+
+            client = SonarrClient(instance.url, instance.api_key, instance.id)
+            series_data = await self._get_series_data(client, show_id)
+            show_title = series_data.get("title", "Unknown Show")
+            poster_url = client._get_banner_url(series_data.get("images", []), client.instance_id)
+
+            # Check for cancellation
+            if asyncio.current_task().cancelled():
+                logger.info(f"🚫 Search cancelled for {show_title} Season {season_number}")
+                # Send cancellation notification
+                await manager.send_personal_message({
+                    "type": "clear_progress",
+                    "operation_type": "interactive_search",
+                    "message": "🚫 Search operation cancelled by user"
+                }, self.user_id)
+                raise asyncio.CancelledError()
+
+            # Send search start notification
+            await manager.send_enhanced_progress_update(
+                self.user_id,
+                show_title,
+                "interactive_search",
+                f"🔍 Searching for Season {season_number} releases...",
+                20,
+                current_step="Search",
+                details={"poster_url": poster_url, "season_number": season_number}
+            )
+
+            # Search for releases (this is the slow operation)
+            releases = await client._get_releases(show_id, season_number)
+            
+            # Check for cancellation after the slow API call
+            if asyncio.current_task().cancelled():
+                logger.info(f"🚫 Search cancelled for {show_title} Season {season_number} after API call")
+                # Send cancellation notification
+                await manager.send_personal_message({
+                    "type": "clear_progress",
+                    "operation_type": "interactive_search",
+                    "message": "🚫 Search operation cancelled by user"
+                }, self.user_id)
+                raise asyncio.CancelledError()
+            
+            # Send results found notification
+            await manager.send_enhanced_progress_update(
+                self.user_id,
+                show_title,
+                "interactive_search",
+                f"📊 Found {len(releases)} season pack releases",
+                70,
+                current_step="Process Results",
+                details={"poster_url": poster_url, "season_number": season_number, "releases_found": len(releases)}
+            )
+
+            # Format releases for frontend
+            formatted_releases = []
+            logger.info(f"Formatting {len(releases)} releases for UI")
+            for i, release in enumerate(releases):
+                if i == 0:  # Log first release structure
+                    logger.info(f"Sample release keys: {list(release.keys())}")
+                    logger.info(f"First release customFormatScore: {release.get('customFormatScore', 'NOT_FOUND')}")
+                    logger.info(f"First release indexerId: {release.get('indexerId', 'NOT_FOUND')}")
+                formatted_release = self._format_release_for_ui(release)
+                logger.info(f"Formatted release {i+1}: quality_score={formatted_release.get('quality_score', 'NOT_FOUND')}, indexer_id={formatted_release.get('indexer_id', 'NOT_FOUND')}")
+                formatted_releases.append(formatted_release)
+
+            # Sort releases by quality and seeders
+            formatted_releases.sort(key=lambda x: (-x["release_weight"], -x["seeders"]))
+
+            # Send completion notification
+            await manager.send_enhanced_progress_update(
+                self.user_id,
+                show_title,
+                "interactive_search",
+                f"✅ Interactive search completed - {len(formatted_releases)} releases ready for selection",
+                100,
+                "success",
+                current_step="Complete",
+                details={"poster_url": poster_url, "season_number": season_number, "releases_found": len(formatted_releases)}
+            )
+
+            return formatted_releases
+
+        except Exception as e:
+            logger.error(f"Error in interactive search: {e}")
+            await manager.send_enhanced_progress_update(
+                self.user_id,
+                show_title if 'show_title' in locals() else "Unknown Show",
+                "interactive_search",
+                f"❌ Search failed: {str(e)}",
+                100,
+                "error",
+                current_step="Error",
+                details={"error": str(e)}
+            )
+            raise
+
+    async def download_specific_release(self, release_guid: str, show_id: int, season_number: int, instance_id: Optional[int] = None, indexer_id: Optional[int] = None) -> Dict[str, Any]:
+        """Download a specific release by GUID"""
+        activity = None
+        try:
+            # Get series data first
+            instance = self._get_sonarr_instance_by_id(instance_id) if instance_id else self._get_sonarr_instance(show_id)
+            if not instance:
+                raise Exception("No Sonarr instance found for this show")
+
+            client = SonarrClient(instance.url, instance.api_key, instance.id)
+            series_data = await self._get_series_data(client, show_id)
+            show_title = series_data.get("title", "Unknown Show")
+            poster_url = client._get_banner_url(series_data.get("images", []), client.instance_id)
+
+            # Create activity log
+            activity = self._create_activity_log(instance.id, show_id, show_title, season_number)
+
+            # Send download start notification
+            await manager.send_enhanced_progress_update(
+                self.user_id,
+                show_title,
+                "manual_download",
+                f"🚀 Starting manual download for Season {season_number}...",
+                10,
+                current_step="Initialize",
+                details={"poster_url": poster_url, "season_number": season_number}
+            )
+
+            # Check user settings
+            settings = self.db.query(UserSettings).filter(UserSettings.user_id == self.user_id).first()
+            skip_deletion = settings and settings.skip_episode_deletion
+
+            if not skip_deletion:
+                # Delete existing episodes
+                await manager.send_enhanced_progress_update(
+                    self.user_id,
+                    show_title,
+                    "manual_download",
+                    f"🗑️ Deleting existing episodes from Season {season_number}...",
+                    30,
+                    current_step="Delete Episodes",
+                    details={"poster_url": poster_url, "season_number": season_number}
+                )
+                
+                await client.delete_season_episodes(show_id, season_number)
+
+            # Download the specific release
+            await manager.send_enhanced_progress_update(
+                self.user_id,
+                show_title,
+                "manual_download",
+                f"📥 Downloading selected release...",
+                60,
+                current_step="Download",
+                details={"poster_url": poster_url, "season_number": season_number}
+            )
+
+            # Use Sonarr's download API with the provided indexer_id
+            download_result = await client.download_release_direct(release_guid, indexer_id)
+
+            # Complete notification
+            await manager.send_enhanced_progress_update(
+                self.user_id,
+                show_title,
+                "manual_download",
+                f"✅ Download initiated successfully for Season {season_number}",
+                100,
+                "success",
+                current_step="Complete",
+                details={"poster_url": poster_url, "season_number": season_number}
+            )
+
+            # Update activity log
+            self._update_activity_log(
+                activity,
+                "success",
+                f"Manual download completed for {show_title} Season {season_number}"
+            )
+
+            return {
+                "status": "success",
+                "show": show_title,
+                "season": season_number,
+                "message": "Download initiated successfully"
+            }
+
+        except Exception as e:
+            logger.error(f"Error downloading release: {e}")
+            
+            # Update activity log on error
+            if activity:
+                self._update_activity_log(
+                    activity,
+                    "error",
+                    f"Manual download failed for {activity.show_title}",
+                    str(e)
+                )
+
+            await manager.send_enhanced_progress_update(
+                self.user_id,
+                show_title if 'show_title' in locals() else "Unknown Show",
+                "manual_download",
+                f"❌ Download failed: {str(e)}",
+                100,
+                "error",
+                current_step="Error",
+                details={"error": str(e)}
+            )
+            raise
+
+    def _format_release_for_ui(self, release: Dict[str, Any]) -> Dict[str, Any]:
+        """Format a release for frontend display"""
+        # Helper function to format file size
+        def format_size(size_bytes):
+            if size_bytes >= 1024**3:
+                return f"{size_bytes / (1024**3):.1f} GB"
+            elif size_bytes >= 1024**2:
+                return f"{size_bytes / (1024**2):.1f} MB"
+            elif size_bytes >= 1024:
+                return f"{size_bytes / 1024:.1f} KB"
+            else:
+                return f"{size_bytes} B"
+
+        # Helper function to format age
+        def format_age(age_hours):
+            if age_hours < 1:
+                return "< 1 hour"
+            elif age_hours < 24:
+                return f"{int(age_hours)} hours"
+            elif age_hours < 24 * 7:
+                return f"{int(age_hours / 24)} days"
+            elif age_hours < 24 * 30:
+                return f"{int(age_hours / (24 * 7))} weeks"
+            elif age_hours < 24 * 365:
+                return f"{int(age_hours / (24 * 30))} months"
+            else:
+                # Convert to years and months
+                total_months = int(age_hours / (24 * 30))
+                years = total_months // 12
+                months = total_months % 12
+                if months == 0:
+                    return f"{years} years"
+                else:
+                    return f"{years} years {months} months"
+
+        # Extract quality information
+        quality = release.get("quality", {})
+        
+        # Sonarr release structure typically has:
+        # quality: { quality: { id: 6, name: "WEBDL-1080p" } }
+        # And quality score should be at the top level as "qualityScore" or "score"
+        
+        if "quality" in quality:
+            # Nested structure (most common)
+            quality_info = quality.get("quality", {})
+            quality_name = quality_info.get("name", "Unknown")
+        else:
+            # Direct structure (fallback)
+            quality_name = quality.get("name", "Unknown")
+        
+        # Quality score extraction using customFormatScore from Sonarr API
+        # This includes both positive and negative scores (negative = rejected/poor quality)
+        quality_score = release.get("customFormatScore", 0)
+        logger.info(f"Release: {release.get('title', 'Unknown')[:50]}... - customFormatScore: {quality_score}")
+        
+        # Calculate release weight for sorting (higher = better)
+        release_weight = quality_score
+        
+        # Bonus for proper/repack
+        if release.get("proper", False):
+            release_weight += 50
+        if "repack" in release.get("title", "").lower():
+            release_weight += 25
+
+        return {
+            "guid": release.get("guid", ""),
+            "title": release.get("title", "Unknown"),
+            "size": release.get("size", 0),
+            "size_formatted": format_size(release.get("size", 0)),
+            "seeders": release.get("seeders", 0),
+            "leechers": release.get("leechers", 0),
+            "age": release.get("age", 0),
+            "age_formatted": format_age(release.get("ageHours", 0)),  # Use ageHours directly
+            "quality": quality_name,
+            "quality_score": quality_score,
+            "indexer": release.get("indexer", "Unknown"),
+            "indexer_id": release.get("indexerId", 0),  # Store indexerId for download
+            "approved": release.get("approved", True),
+            "indexer_flags": release.get("indexerFlags", []),
+            "release_weight": release_weight
+        }
+

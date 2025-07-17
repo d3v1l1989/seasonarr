@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, Request, Query
+from fastapi.exceptions import RequestValidationError
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -10,7 +11,7 @@ import os
 from database import get_db, init_db
 from models import User, SonarrInstance, UserSettings, Notification, ActivityLog
 from auth import verify_token, get_current_user
-from schemas import UserLogin, UserRegister, SonarrInstanceCreate, SonarrInstanceUpdate, SonarrInstanceResponse, SeasonItRequest, UserSettingsResponse, UserSettingsUpdate, NotificationResponse, NotificationUpdate, ActivityLogResponse
+from schemas import UserLogin, UserRegister, SonarrInstanceCreate, SonarrInstanceUpdate, SonarrInstanceResponse, SeasonItRequest, UserSettingsResponse, UserSettingsUpdate, NotificationResponse, NotificationUpdate, ActivityLogResponse, SearchSeasonPacksRequest, DownloadReleaseRequest, ReleaseResponse
 from websocket_manager import manager
 import logging
 import json
@@ -22,7 +23,18 @@ from auth import SECRET_KEY, ALGORITHM
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Seasonarr API", version="1.0.0")
+app = FastAPI(title="Seasonarr API", version="1.0.0", debug=False)
+
+# Add validation error handler
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.error(f"🚨 VALIDATION ERROR on {request.method} {request.url}")
+    logger.error(f"Request body: {await request.body()}")
+    logger.error(f"Validation errors: {exc.errors()}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": exc.body}
+    )
 
 # Add GZip compression middleware (should be first)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -664,6 +676,104 @@ async def bulk_season_it(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Bulk Season It failed: {str(e)}"
+        )
+
+@app.post("/api/search-season-packs")
+async def search_season_packs(
+    request: SearchSeasonPacksRequest,
+    http_request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Search for season packs and return results for interactive selection"""
+    from season_it_service import SeasonItService
+    import asyncio
+    
+    logger.info(f"🔍 SEARCH ENDPOINT CALLED: show_id={request.show_id}, season={request.season_number}, instance_id={request.instance_id}")
+    
+    service = SeasonItService(db, current_user.id)
+    
+    try:
+        # Check if client disconnected before starting the search
+        if await http_request.is_disconnected():
+            logger.info("🚫 Client disconnected before search started")
+            raise HTTPException(status_code=499, detail="Client disconnected")
+        
+        # Create a task for the search operation
+        search_task = asyncio.create_task(
+            service.search_season_packs_interactive(
+                request.show_id, 
+                request.season_number, 
+                request.instance_id
+            )
+        )
+        
+        # Poll for client disconnection while search is running
+        while not search_task.done():
+            if await http_request.is_disconnected():
+                logger.info("🚫 Client disconnected during search - cancelling operation")
+                search_task.cancel()
+                try:
+                    await search_task
+                except asyncio.CancelledError:
+                    logger.info("✅ Search operation cancelled successfully")
+                
+                # Send cancellation notification to clear progress
+                await manager.send_personal_message({
+                    "type": "clear_progress",
+                    "operation_type": "interactive_search",
+                    "message": "🚫 Search operation cancelled by user"
+                }, current_user.id)
+                raise HTTPException(status_code=499, detail="Client disconnected")
+            
+            # Short sleep to avoid busy waiting
+            await asyncio.sleep(0.1)
+        
+        releases = await search_task
+        logger.info(f"✅ SEARCH ENDPOINT RETURNING {len(releases)} releases")
+        return {"releases": releases}
+    except asyncio.CancelledError:
+        logger.info("🚫 Search operation was cancelled")
+        # Send cancellation notification to clear progress
+        await manager.send_personal_message({
+            "type": "clear_progress",
+            "operation_type": "interactive_search",
+            "message": "🚫 Search operation cancelled by user"
+        }, current_user.id)
+        raise HTTPException(status_code=499, detail="Operation cancelled")
+    except Exception as e:
+        logger.error(f"Season pack search error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Season pack search failed: {str(e)}"
+        )
+
+@app.post("/api/download-release")
+async def download_release(
+    request: DownloadReleaseRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Download a specific release by GUID"""
+    from season_it_service import SeasonItService
+    
+    
+    service = SeasonItService(db, current_user.id)
+    
+    try:
+        result = await service.download_specific_release(
+            request.release_guid,
+            request.show_id,
+            request.season_number,
+            request.instance_id,
+            request.indexer_id
+        )
+        return {"message": "Release download initiated", "result": result}
+    except Exception as e:
+        logger.error(f"Release download error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Release download failed: {str(e)}"
         )
 
 @app.post("/api/operations/{operation_id}/cancel")
