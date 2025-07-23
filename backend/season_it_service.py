@@ -795,21 +795,21 @@ class SeasonItService:
                                                   season_number: int, show_title: str, 
                                                   progress_callback: callable, poster_url: str = None) -> Dict[str, Any]:
         """Process single season with progress callback for bulk operations"""
-        await progress_callback(25, f"Checking for future episodes in Season {season_number}", poster_url)
+        await progress_callback(25, f"Checking for future episodes in {show_title} Season {season_number}", poster_url)
         
         # Check for future episodes first
         future_check = await client.has_future_episodes(show_id, season_number)
         if season_number in future_check.get("seasons_incomplete", []):
-            await progress_callback(100, f"Season {season_number} has unaired episodes - skipping", poster_url)
+            await progress_callback(100, f"{show_title} Season {season_number} has unaired episodes - skipping", poster_url)
             return {"status": "incomplete_season", "message": "Season has episodes that haven't aired yet"}
         
-        await progress_callback(30, f"Checking missing episodes for Season {season_number}", poster_url)
+        await progress_callback(30, f"Checking missing episodes for {show_title} Season {season_number}", poster_url)
         
         missing_data = await client.get_missing_episodes(show_id, season_number)
         seasons_with_missing = missing_data.get("seasons_with_missing", {})
         
         if season_number not in seasons_with_missing:
-            await progress_callback(100, f"Season {season_number} has no missing episodes", poster_url)
+            await progress_callback(100, f"{show_title} Season {season_number} has no missing episodes", poster_url)
             return {"status": "no_missing_episodes", "message": "No missing episodes found"}
         
         missing_count = len(seasons_with_missing[season_number])
@@ -817,22 +817,22 @@ class SeasonItService:
         skip_season_pack_check = settings and settings.disable_season_pack_check
         
         if skip_season_pack_check:
-            await progress_callback(50, f"Season pack check disabled, proceeding with regular search", poster_url)
+            await progress_callback(50, f"Season pack check disabled for {show_title}, proceeding with regular search", poster_url)
             if not (settings and settings.skip_episode_deletion):
-                await progress_callback(60, f"Deleting individual episodes", poster_url)
+                await progress_callback(60, f"Deleting individual episodes from {show_title}", poster_url)
                 await client.delete_season_episodes(show_id, season_number)
         else:
-            await progress_callback(40, f"Checking for season packs", poster_url)
+            await progress_callback(40, f"Checking for season packs for {show_title}", poster_url)
             releases = await client._get_releases(show_id, season_number)
             
             if not releases:
-                await progress_callback(60, f"No season packs found, proceeding with regular search", poster_url)
+                await progress_callback(60, f"No season packs found for {show_title}, proceeding with regular search", poster_url)
             else:
                 if not (settings and settings.skip_episode_deletion):
-                    await progress_callback(70, f"Deleting individual episodes", poster_url)
+                    await progress_callback(70, f"Deleting individual episodes from {show_title}", poster_url)
                     await client.delete_season_episodes(show_id, season_number)
         
-        await progress_callback(80, f"Triggering season search", poster_url)
+        await progress_callback(80, f"Triggering season search for {show_title}", poster_url)
         command_id = await client.search_season_pack(show_id, season_number)
         
         return {
