@@ -213,8 +213,10 @@ class BulkOperation:
             return
             
         self.current_item_progress = progress
+        item = self.items[self.current_item - 1]
+        item_name = item.get('name') or item.get('title') or f"Item {self.current_item}"
         await self._send_progress_update(
-            self.items[self.current_item - 1].get('name', f"Item {self.current_item}"),
+            item_name,
             message,
             poster_url
         )

@@ -365,13 +365,16 @@ export default function Dashboard() {
       // Prepare show items for bulk operation
       // For all selected shows across pages, we need to fetch their data
       const selectedShowIds = Array.from(selectedShows);
-      const showItems = selectedShowIds.map(showId => ({
-        id: showId,
-        name: null, // Backend will fetch the name
-        season_number: null, // null for all seasons
-        poster_url: null, // Backend will fetch the poster URL
-        instance_id: selectedInstance.id
-      }));
+      const showItems = selectedShowIds.map(showId => {
+        const show = shows.find(s => s.id === showId);
+        return {
+          id: showId,
+          name: show ? show.title : `Show ${showId}`,
+          season_number: null, // null for all seasons
+          poster_url: show ? show.poster_url : null,
+          instance_id: selectedInstance.id
+        };
+      });
       
       // Call the new bulk Season It API
       const response = await fetch('/api/bulk-season-it', {
